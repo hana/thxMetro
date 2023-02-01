@@ -16,16 +16,13 @@
 #include <type_traits>
 #include <unordered_map>
 
-// #include "ThreadPoolExecutor.hpp"
-
-
 namespace thx {
     using Clock = std::chrono::system_clock;
     
     template <bool Threaded=false>
     class Metro {
-        using KeyType = std::string;
-        // using Func = std::function<void()>;        
+        using key_type = std::string;
+
         class Base {
         protected:
             static constexpr bool CatchUp = true;
@@ -33,11 +30,11 @@ namespace thx {
             Clock::duration delay;
             Clock::duration interval;
             bool enabled;
-            const KeyType name;
+            const key_type name;
 
         public:
             template<typename Duration>
-            Base(const Duration& _interval, const KeyType& n) : interval(_interval), name(n) {};
+            Base(const Duration& _interval, const key_type& n) : interval(_interval), name(n) {};
 
             virtual ~Base() {};
             virtual void operator()() = 0;
@@ -99,7 +96,7 @@ namespace thx {
         public:
 
             template<typename Duration>
-            Event(const Duration& _interval, const KeyType& name, const Func f) : Base(_interval, name), func(f) {
+            Event(const Duration& _interval, const key_type& name, const Func f) : Base(_interval, name), func(f) {
                 Base::enabled = true;
                 Base::last_triggered = Clock::now();
             };
@@ -138,9 +135,9 @@ namespace thx {
         };
 
     private:        
-        std::unordered_map<KeyType, std::shared_ptr<Base>> map;
+        std::unordered_map<key_type, std::shared_ptr<Base>> map;
         
-        inline KeyType generate_key() {
+        inline key_type generate_key() {
             std::stringstream ss;
             ss << "func" << map.size();
             return ss.str();
@@ -148,7 +145,7 @@ namespace thx {
 
     public:
         template<typename Duration, typename Func>
-        auto& add(const KeyType& key, Duration interval, const Func func) {               
+        auto& add(const key_type& key, Duration interval, const Func func) {               
             auto e = std::make_shared<Event<Func>>(interval, key, func);
             auto itr = map.emplace(key, std::move(e)).first;
             return *itr->second;
@@ -187,15 +184,15 @@ namespace thx {
             }            
         }
 
-        inline void remove(const KeyType& key) {
+        inline void remove(const key_type& key) {
             map.erase(key);
         }
 
-        inline void disable(const KeyType& key) {
+        inline void disable(const key_type& key) {
             map.at(key).enabled = false;
         }
 
-        inline void enable(const KeyType& key, const bool reset_time_point = false)   {
+        inline void enable(const key_type& key, const bool reset_time_point = false)   {
             auto& event = map.at(key);
             event.enabled = true;
 
