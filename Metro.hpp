@@ -24,6 +24,7 @@ namespace thx {
         using key_type = std::string;
 
         class Base {
+            friend Metro;
         protected:
             static constexpr bool CatchUp = true;
             Clock::time_point last_triggered;
@@ -60,8 +61,8 @@ namespace thx {
                 return *this;
             }
             
-            inline void reset_clock(std::optional<Clock::time_point> tp = Clock::now()) {
-                last_triggered = tp.value() + delay;    
+            inline void reset_clock(Clock::time_point tp = Clock::now()) {
+                last_triggered = tp + delay;
             }
 
             template<typename Duration>
@@ -85,11 +86,22 @@ namespace thx {
             const auto& get_name() const {
                 return name;
             }
+            
+            void enable() {
+                enabled = true;
+            }
+            
+            void disable() {
+                enabled = false;
+            }
         };
 
         template <typename Func>
         class Event : public Base {
-            static_assert(std::is_invocable_v<Func>, "function is not invocable.");            
+#if __cplusplus == 201402L
+#else
+            static_assert(std::is_invocable_v<Func>, "function is not invocable.");
+#endif
             const Func func;
             std::thread thread;       
 
@@ -152,8 +164,16 @@ namespace thx {
         }
 
         template<typename Duration, typename Func>
-        auto& add(const Duration interval, const Func func)  {                     
+        auto& add(const Duration interval, const Func func)  {
+#if __cplusplus == 201402L
             return this->add(generate_key(), interval, func);
+#else
+            if constexpr (std::is_arithmetic_v<Duration>) {
+                return this->add(generate_key(), std::chrono::milliseconds(interval), func);
+            } else {
+                return this->add(generate_key(), interval, func);
+            }
+#endif
         }
 
         template<typename Func>
@@ -185,19 +205,24 @@ namespace thx {
         }
 
         inline void remove(const key_type& key) {
+            if(map.count(key) == 0) return;
             map.erase(key);
         }
 
         inline void disable(const key_type& key) {
-            map.at(key).enabled = false;
+            if(map.count(key) == 0) return;
+            
+            auto event = map.at(key);
+            event->enabled = false;
         }
 
         inline void enable(const key_type& key, const bool reset_time_point = false)   {
+            if(map.count(key) == 0) return;
             auto& event = map.at(key);
-            event.enabled = true;
+            event->enabled = true;
 
             if(reset_time_point) {
-                event.last_triggered = Clock::now();
+                event->last_triggered = Clock::now();
             }        
         }
 
@@ -207,14 +232,24 @@ namespace thx {
                 auto& elm = event.second;
                 elm->reset_clock(now);
             }   
-        }        
+        }
+        
+        template<typename Duration>
+        void set_interval(const key_type& key, const Duration& duration) {
+            map.at(key)->interval = duration;
+        }
     };
-
     
     class metro {
         public: 
             static auto& get_instance() {
+#if __cplusplus == 201402L
+                static Metro<false> instance;
+#elif __cplusplus == 201703L
                 static Metro instance;
+#endif
+
+                
                 return instance;
             }
 
@@ -226,13 +261,12 @@ namespace thx {
             metro& operator=(const metro&) = delete;
             metro& operator=(metro&&) = delete;
     };
-
-
+    
     using ThreadedMetro = Metro<true>;
     class threaded_metro {
         public: 
             static auto& get_instance() {
-                static Metro instance;
+                static ThreadedMetro instance;
                 return instance;
             }
 
