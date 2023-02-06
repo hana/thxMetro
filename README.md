@@ -11,7 +11,7 @@ Periodic function runner
 ```cpp
 #include <iostream>
 
-#include "Metro.hpp"
+#include "thxMetro.hpp"
 
 void foo() {
     std::cout << "foo" << std::endl;
