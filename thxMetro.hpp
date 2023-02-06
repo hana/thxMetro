@@ -98,8 +98,7 @@ namespace thx {
 
         template <typename Func>
         class Event : public Base {
-#if __cplusplus == 201402L
-#else
+#if __cplusplus > 201402L
             static_assert(std::is_invocable_v<Func>, "function is not invocable.");
 #endif
             const Func func;
@@ -165,7 +164,7 @@ namespace thx {
 
         template<typename Duration, typename Func>
         auto& add(const Duration interval, const Func func)  {
-#if __cplusplus == 201402L
+#if __cplusplus < 201703L
             return this->add(generate_key(), interval, func);
 #else
             if constexpr (std::is_arithmetic_v<Duration>) {
@@ -243,9 +242,9 @@ namespace thx {
     class metro {
         public: 
             static auto& get_instance() {
-#if __cplusplus == 201402L
+#if __cplusplus < 201703L
                 static Metro<false> instance;
-#elif __cplusplus == 201703L
+#else
                 static Metro instance;
 #endif
 
